@@ -1,8 +1,6 @@
-using System;
 using System.Diagnostics;
-using System.Globalization;
-using System.IO;
 using System.Runtime.InteropServices;
+using Microsoft.CommandPalette.Extensions;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -18,6 +16,7 @@ public sealed partial class MainWindow : Window
 
     private nint _hostWindowHandle;
     private nint _widgetWindowHandle;
+    private IExtension? _extension;
     private Process? _widgetProcess;
     private DispatcherQueueTimer? _discoveryTimer;
     private int _discoveryTicks;
@@ -34,7 +33,7 @@ public sealed partial class MainWindow : Window
         Closed += MainWindow_Closed;
     }
 
-    private void WidgetSlot_Loaded(object sender, RoutedEventArgs e)
+    private async void WidgetSlot_Loaded(object sender, RoutedEventArgs e)
     {
         if (_started)
         {
@@ -46,25 +45,24 @@ public sealed partial class MainWindow : Window
         try
         {
             _hostWindowHandle = WindowNative.GetWindowHandle(this);
-            string widgetPath = Path.Combine(AppContext.BaseDirectory, "WidgetApp", "WidgetApp.exe");
-            if (!File.Exists(widgetPath))
+            ConnectionStatus.Text = "Activating IExtension through packaged COM…";
+
+            RemoteExtensionConnection connection = await Task.Run(
+                () => RemoteExtensionActivator.ActivateAndAttach(
+                    unchecked((ulong)_hostWindowHandle.ToInt64())));
+
+            if (_closing)
             {
-                throw new FileNotFoundException("The WidgetApp build output was not copied beside HostApp.", widgetPath);
+                await Task.Run(connection.Extension.Dispose);
+                return;
             }
 
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = widgetPath,
-                Arguments = _hostWindowHandle.ToInt64().ToString(CultureInfo.InvariantCulture),
-                UseShellExecute = false,
-            };
-
-            _widgetProcess = Process.Start(startInfo)
-                ?? throw new InvalidOperationException("WidgetApp.exe did not start.");
+            _extension = connection.Extension;
+            _widgetProcess = Process.GetProcessById(connection.ProcessId);
             _widgetProcess.EnableRaisingEvents = true;
             _widgetProcess.Exited += WidgetProcess_Exited;
 
-            ConnectionStatus.Text = $"Waiting for WidgetApp.exe (PID {_widgetProcess.Id})…";
+            ConnectionStatus.Text = $"COM extension activated (PID {_widgetProcess.Id}); waiting for its HWND…";
             _discoveryTimer = DispatcherQueue.CreateTimer();
             _discoveryTimer.Interval = TimeSpan.FromMilliseconds(50);
             _discoveryTimer.IsRepeating = true;
@@ -73,7 +71,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowFailure($"Widget host failed: {ex.Message}");
+            ShowFailure($"Widget COM activation failed: {ex.Message}");
         }
     }
 
@@ -82,7 +80,7 @@ public sealed partial class MainWindow : Window
         if (_widgetProcess is null || _widgetProcess.HasExited)
         {
             StopDiscoveryTimer();
-            ShowFailure("WidgetApp.exe exited before publishing its window.");
+            ShowFailure("The COM extension exited before publishing its window.");
             return;
         }
 
@@ -92,7 +90,8 @@ public sealed partial class MainWindow : Window
             StopDiscoveryTimer();
             UpdateWidgetBounds();
             ConnectionProgress.IsActive = false;
-            ConnectionStatus.Text = $"Embedded WidgetApp.exe (PID {_widgetProcess.Id}, HWND 0x{_widgetWindowHandle:X}).";
+            ConnectionStatus.Text =
+                $"Embedded COM extension (PID {_widgetProcess.Id}, HWND 0x{_widgetWindowHandle:X}).";
             return;
         }
 
@@ -100,7 +99,7 @@ public sealed partial class MainWindow : Window
         if (_discoveryTicks >= WidgetDiscoveryLimit)
         {
             StopDiscoveryTimer();
-            ShowFailure("Timed out waiting for WidgetApp.exe to attach its child window.");
+            ShowFailure("Timed out waiting for the COM extension to attach its child window.");
         }
     }
 
@@ -156,7 +155,9 @@ public sealed partial class MainWindow : Window
             y,
             width,
             height,
-            NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
+            NativeMethods.SWP_ASYNCWINDOWPOS |
+                NativeMethods.SWP_NOACTIVATE |
+                NativeMethods.SWP_SHOWWINDOW);
     }
 
     private void WidgetProcess_Exited(object? sender, EventArgs e)
@@ -170,7 +171,7 @@ public sealed partial class MainWindow : Window
         {
             _widgetWindowHandle = 0;
             StopDiscoveryTimer();
-            ShowFailure("WidgetApp.exe disconnected.");
+            ShowFailure("The COM extension disconnected.");
         });
     }
 
@@ -203,9 +204,12 @@ public sealed partial class MainWindow : Window
             NativeMethods.PostMessage(_widgetWindowHandle, NativeMethods.WM_CLOSE, 0, 0);
             _widgetWindowHandle = 0;
         }
-        else if (_widgetProcess is { HasExited: false })
+
+        IExtension? extension = _extension;
+        _extension = null;
+        if (extension is not null)
         {
-            _widgetProcess.Kill(entireProcessTree: true);
+            _ = Task.Run(extension.Dispose);
         }
 
         if (_widgetProcess is not null)
@@ -216,30 +220,31 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static class NativeMethods
+    private static partial class NativeMethods
     {
         internal const uint SWP_NOACTIVATE = 0x0010;
         internal const uint SWP_SHOWWINDOW = 0x0040;
+        internal const uint SWP_ASYNCWINDOWPOS = 0x4000;
         internal const uint WM_CLOSE = 0x0010;
 
         internal delegate bool EnumWindowsProc(nint windowHandle, nint parameter);
 
-        [DllImport("user32.dll")]
+        [LibraryImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool EnumChildWindows(
+        internal static partial bool EnumChildWindows(
             nint parentWindow,
             EnumWindowsProc callback,
             nint parameter);
 
-        [DllImport("user32.dll")]
-        internal static extern nint GetParent(nint windowHandle);
+        [LibraryImport("user32.dll")]
+        internal static partial nint GetParent(nint windowHandle);
 
-        [DllImport("user32.dll")]
-        internal static extern uint GetWindowThreadProcessId(nint windowHandle, out uint processId);
+        [LibraryImport("user32.dll")]
+        internal static partial uint GetWindowThreadProcessId(nint windowHandle, out uint processId);
 
-        [DllImport("user32.dll", SetLastError = true)]
+        [LibraryImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool SetWindowPos(
+        internal static partial bool SetWindowPos(
             nint windowHandle,
             nint insertAfter,
             int x,
@@ -248,9 +253,9 @@ public sealed partial class MainWindow : Window
             int height,
             uint flags);
 
-        [DllImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
+        [LibraryImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool PostMessage(
+        internal static partial bool PostMessage(
             nint windowHandle,
             uint message,
             nint wParam,

@@ -34,6 +34,7 @@ namespace HostApp
         /// </summary>
         public App()
         {
+            WinRT.ComWrappersSupport.InitializeComWrappers();
             InitializeComponent();
         }
 

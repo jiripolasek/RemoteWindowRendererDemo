@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <WindowsSdkPackageVersion>10.0.26100.68-preview</WindowsSdkPackageVersion>
     <RootNamespace>HostApp</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
@@ -13,6 +15,7 @@
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableMsixTooling>false</EnableMsixTooling>
+    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
@@ -39,25 +42,11 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.CommandPalette.Extensions" Version="0.11.260520004" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
   </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\WidgetApp\WidgetApp.csproj" ReferenceOutputAssembly="false" />
-  </ItemGroup>
-
-  <Target Name="CopyWidgetAppOutput" AfterTargets="Build">
-    <PropertyGroup>
-      <WidgetAppOutputDir>$(MSBuildThisFileDirectory)..\WidgetApp\bin\$(Platform)\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\</WidgetAppOutputDir>
-    </PropertyGroup>
-    <ItemGroup>
-      <WidgetAppOutputFiles Include="$(WidgetAppOutputDir)**\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(WidgetAppOutputFiles)"
-          DestinationFiles="@(WidgetAppOutputFiles->'$(OutDir)WidgetApp\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
 
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution

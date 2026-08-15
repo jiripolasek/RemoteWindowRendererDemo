@@ -23,7 +23,7 @@
         <StackPanel Spacing="4">
             <TextBlock FontSize="24" FontWeight="SemiBold" Text="Out-of-process WinUI 3 page" />
             <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="WidgetApp.exe owns the Page; Windows embeds its HWND and routes input." />
+                       Text="CmdPal's IExtension COM contract activates the widget; Windows embeds its HWND and routes input." />
         </StackPanel>
 
         <Border x:Name="WidgetSlot"
@@ -39,7 +39,7 @@
             <TextBlock x:Name="ConnectionStatus"
                        VerticalAlignment="Center"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="Starting WidgetApp.exe…" />
+                       Text="Activating the packaged COM extension…" />
         </StackPanel>
     </Grid>
 </Window>

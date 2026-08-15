@@ -1,0 +1,4 @@
+{
+  "name": "Remote Widget POC",
+  "description": "CmdPal-style out-of-process COM activation proof of concept"
+}
