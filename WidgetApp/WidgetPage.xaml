@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="WidgetApp.WidgetPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Background="{ThemeResource LayerFillColorDefaultBrush}" Padding="32">
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="24"
+                RightTapped="InteractionSurface_RightTapped">
+            <StackPanel HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        Spacing="12">
+                <FontIcon HorizontalAlignment="Center"
+                          FontSize="36"
+                          Glyph="&#xE7F8;" />
+                <TextBlock HorizontalAlignment="Center"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Text="This Page belongs to WidgetApp" />
+                <TextBlock HorizontalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           Text="Its XAML tree and event handlers remain in the widget process." />
+                <TextBox x:Name="RemoteTextBox"
+                         MaxWidth="420"
+                         HorizontalAlignment="Stretch"
+                         AutomationProperties.Name="Remote widget text"
+                         PlaceholderText="Type here, then right-click for actions"
+                         TextChanged="RemoteTextBox_TextChanged">
+                    <TextBox.ContextFlyout>
+                        <MenuFlyout Opened="TextContextFlyout_Opened">
+                            <MenuFlyoutItem Click="SelectAllMenuItem_Click"
+                                            Text="Select all" />
+                            <MenuFlyoutItem Click="InsertSampleMenuItem_Click"
+                                            Text="Insert sample text" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Click="ClearMenuItem_Click"
+                                            Text="Clear" />
+                        </MenuFlyout>
+                    </TextBox.ContextFlyout>
+                </TextBox>
+                <TextBlock x:Name="TextStatus"
+                           HorizontalAlignment="Center"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="Text length: 0  ·  Menu opens: 0  ·  Actions: 0" />
+                <Button HorizontalAlignment="Center"
+                        Click="ActionButton_Click"
+                        Content="Click in the remote Page" />
+                <TextBlock x:Name="EventStatus"
+                           HorizontalAlignment="Center"
+                           Text="Left clicks: 0  ·  Right clicks: 0" />
+                <TextBlock HorizontalAlignment="Center"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="Right-click the text box for its menu, or the card to count a tap." />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>
